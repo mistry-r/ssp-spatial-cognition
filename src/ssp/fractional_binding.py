@@ -14,7 +14,9 @@ class SpatialSemanticPointer:
         self.Y = self._generate_unitary_vector()
 
     def _generate_unitary_vector(self):
-        """Generates a random unitary vector."""
+        """
+        Generates a random unitary vector.
+        """
         # TODO: Implement based on Komer paper
         pass
 
