@@ -4,7 +4,7 @@ from numpy.ftt import ftt, ifft
 class SpatialSemanticPointer:
     """
     Implements Spatial Semantic Pointers using fractional binding.
-    Based on Komer et al. (2019), Equation 2.
+    Based on Komer et al., Equation 2.
     """
 
     def __init__(self, dimensions=512):

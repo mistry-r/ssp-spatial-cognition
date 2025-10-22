@@ -1,3 +1,5 @@
+import numpy as np
+
 class SpatialMemory:
     """
     Represents a collection of objects at spatial locations.
