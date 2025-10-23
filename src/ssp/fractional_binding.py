@@ -4,7 +4,6 @@ from numpy.ftt import fft, ifft
 class SpatialSemanticPointer:
     """
     Implements Spatial Semantic Pointers using fractional binding.
-    Based on Komer et al., Equation 2.
     """
 
     def __init__(self, dimensions=512, seed=None):
@@ -17,14 +16,21 @@ class SpatialSemanticPointer:
         self.d = dimensions
         self.rng = np.random.RandomState(seed)
 
+        # Generate unitary basis vectors for X and Y axes
         self.X = self._generate_unitary_vector()
         self.Y = self._generate_unitary_vector()
 
     def _generate_unitary_vector(self):
         """
         Generates a random unitary vector.
+
+        A unitary vector has the property that |B^k| = |B| for any k.
+        This is achieved by having unit magnitude in the Fourier domain.
         """
+        # Generate random phases in Fourier domain
         phases = self.rng.uniform(-np.pi, np.pi, self.d // 2 + 1)
+
+        # Creae complex values with unit magnitude (symmetry needed for real-valued output)
         fft_val = np.zeros(self.d, dtype=complex)
         fft_val[0] = 1 # DC component is real
 
@@ -34,14 +40,15 @@ class SpatialSemanticPointer:
 
         fft_val[self.d // 2] = np.exp(1j *phases[self.d // 2]) # Nyquist
 
-        vec = ifft(fft_val).real
-        vec = vec / np.linalg.norm(vec)
+        vec = ifft(fft_val).real # Convert to time domain
+        vec = vec / np.linalg.norm(vec) # Normalize to unit length
 
         return vec
     
     def circular_convolution(self, a, b):
         """
         Compute circular convolution of two vectors 
+        a ⊛ b = F^{-1}{F{a} ⊙ F{b}}
         """
         if len(a) != len(b):
             raise ValueError("Vectors must be of the same length for circular convolution.")
@@ -53,9 +60,10 @@ class SpatialSemanticPointer:
     def get_inverse(self, vec):
         """
         Compute approximate inverse of a vector
+        v ⊛ v^{-1} ≈ identity
         """
         inv = np.zeros_like(vec)
-        inv[0] = vec[0]
+        inv[0] = vec[0] 
         inv[1:] = vec[-1:0:-1]
 
         return inv
@@ -63,17 +71,18 @@ class SpatialSemanticPointer:
     def fractional_power(self, base_vec, exponent):
         """
         Compute fractional power of a vector
+        B^k = F^{-1}{F{B}^k}
         """
-        fft_val = fft(base_vec)
+        fft_val = fft(base_vec) # Transform to Fourier domain
         fft_powered = np.power(fft_val, exponent)
-        result = ifft(fft_powered).real
+        result = ifft(fft_powered).real # Transform back to time domain
 
         return result
 
     def encode_position(self, x, y):
         """
         Encode a 2D position (x, y) into an SSP
-        Implements Equation 4: S(x, y) = X^x ⊛ Y^y
+        S(x, y) = X^x ⊛ Y^y
         """
         X_to_x = self.fractional_power(self.X, x)
         Y_to_y = self.fractional_power(self.Y, y)
@@ -87,6 +96,7 @@ class SpatialSemanticPointer:
     def encode_region(self, x_range, y_range, num_samples=100):
         """
         Encode a rectangular region defined by integrating over positions.
+        S(R) = ∫_{(x,y)∈R} X^x ⊛ Y^y dx dy
         """
         x_min, x_max = x_range
         y_min, y_max = y_range
@@ -127,6 +137,7 @@ class SpatialSemanticPointer:
         best_similarity = -np.inf
         best_pos = (0, 0)
 
+        # Search for maximum similarity
         for x in x_vals:
             for y in y_vals:
                 pos_ssp = self.encode_position(x, y)
