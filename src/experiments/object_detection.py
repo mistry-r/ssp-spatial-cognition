@@ -335,7 +335,7 @@ def run_all_tests():
     print(f"Readout location:        {results['construct_readout']['readout']:.1f}% (target: 100.0%)")
     print("=" * 60)
     
-    return results
+    return results 
 
 if __name__ == '__main__':
     results = run_all_tests()
