@@ -102,7 +102,7 @@ class SpatialMemory:
         Implements Equation 9: M ⊛ OBJ^{-1}
         """
         if object_name not in self.vocabulary:
-            return None # Object not in memory
+            return [] # Object not in memory
         
         obj_sp = self.vocabulary[object_name] # Get semantic pointer for object
         obj_inv = self.ssp.get_inverse(obj_sp) # Get inverse of object SSP

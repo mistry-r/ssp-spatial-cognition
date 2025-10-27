@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.ftt import fft, ifft
+from numpy.fft import fft, ifft
 
 class SpatialSemanticPointer:
     """
@@ -30,9 +30,9 @@ class SpatialSemanticPointer:
         # Generate random phases in Fourier domain
         phases = self.rng.uniform(-np.pi, np.pi, self.d // 2 + 1)
 
-        # Creae complex values with unit magnitude (symmetry needed for real-valued output)
+        # Create complex values with unit magnitude (symmetry needed for real-valued output)
         fft_val = np.zeros(self.d, dtype=complex)
-        fft_val[0] = 1 # DC component is real
+        fft_val[0] = 1.0 # DC component is real
 
         for i in range(1, self.d // 2):
             fft_val[i] = np.exp(1j * phases[i])
