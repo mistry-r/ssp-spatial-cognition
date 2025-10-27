@@ -115,7 +115,7 @@ def test_memory_trace():
     print("Test 4: Quantifying memory persistence")
     print()
     print("This demonstrates 'graceful degradation' - removed objects")
-    print("leave traces that interfere with clean readout.")
+    print("leave traces that interfere with clean readout.") 
     print()
 
 if __name__ == '__main__':    
