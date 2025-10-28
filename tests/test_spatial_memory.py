@@ -109,14 +109,29 @@ class TestSpatialMemory:
         
         assert len(memory.objects['DUP']) == 2
     
-    def test_memory_unit_length(self):
-        """Test that memory vector stays unit length."""
+    def test_memory_unnormalized(self):
+        """Test that memory accumulates without normalization."""
         ssp = SpatialSemanticPointer(dimensions=256, seed=42)
         memory = SpatialMemory(ssp, dimensions=256, seed=42)
         
         # Add several objects
         for i in range(5):
             memory.add_object(f'OBJ_{i}', float(i), float(i))
+        
+        # Memory should grow with each addition (not normalized)
+        assert np.linalg.norm(memory.memory) > 1.0
+
+    def test_memory_unit_length(self):
+        """Test that memory vector becomes unit length after normalization."""
+        ssp = SpatialSemanticPointer(dimensions=256, seed=42)
+        memory = SpatialMemory(ssp, dimensions=256, seed=42)
+        
+        # Add several objects
+        for i in range(5):
+            memory.add_object(f'OBJ_{i}', float(i), float(i))
+        
+        # Explicitly normalize
+        memory.normalize_memory()
         
         # Memory should be unit length
         assert np.isclose(np.linalg.norm(memory.memory), 1.0, atol=1e-6)

@@ -6,7 +6,7 @@ from src.utils.visualization import (
     plot_memory_contents, plot_object_queries, plot_location_queries
 )
 
-def test_single_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
+def test_single_object_query(n_trials=100, dimensions=1024, bounds=(-5, 5)):
     """
     Test accuracy of querying single object locations.
     """
@@ -17,7 +17,6 @@ def test_single_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
     accuracies = []
     
     for trial in range(n_trials):
-        # Random number of objects (2-24)
         n_objects = np.random.randint(2, 25)
         
         # Create SSP and memory
@@ -33,13 +32,15 @@ def test_single_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
             y = np.random.uniform(bounds[0], bounds[1])
             memory.add_object(obj_name, x, y)
             positions[obj_name] = (x, y)
+
+        memory.normalize_memory()
         
         # Query random object
         query_obj = np.random.choice(object_names)
         true_pos = positions[query_obj]
         
         # Decode position
-        estimated_positions = memory.query_object(query_obj, bounds=bounds, resolution=100)
+        estimated_positions = memory.query_object(query_obj, bounds=bounds, resolution=150)
         
         if len(estimated_positions) > 0:
             estimated_pos = estimated_positions[0]
@@ -55,7 +56,7 @@ def test_single_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
     
     return accuracy
 
-def test_missing_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
+def test_missing_object_query(n_trials=100, dimensions=1024, bounds=(-5, 5)):
     """
     Test detection of missing objects.
     """
@@ -78,35 +79,38 @@ def test_missing_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
             y = np.random.uniform(bounds[0], bounds[1])
             memory.add_object(obj_name, x, y)
         
-        # Query object NOT in memory
-        missing_obj = f"OBJ_{n_objects + 10}"
+        memory.normalize_memory()
         
-        # Try to find it at various locations
-        test_positions = [
-            (np.random.uniform(bounds[0], bounds[1]),
-             np.random.uniform(bounds[0], bounds[1]))
-            for _ in range(10)
-        ]
+        # Create a missing object (not in vocabulary)
+        missing_obj = f"MISSING_{trial}"
+        missing_sp = np.random.randn(dimensions)
+        missing_sp = missing_sp / np.linalg.norm(missing_sp)
         
-        # Check if any location returns high similarity
-        max_similarity = 0
-        for x, y in test_positions:
+        # Query at random locations - should not find missing object
+        detected_at_any_location = False
+        n_test_locations = 20  # Test multiple locations
+        
+        for _ in range(n_test_locations):
+            x = np.random.uniform(bounds[0], bounds[1])
+            y = np.random.uniform(bounds[0], bounds[1])
+            
+            # Manually check similarity
             pos_ssp = ssp.encode_position(x, y)
             pos_inv = ssp.get_inverse(pos_ssp)
             result = ssp.circular_convolution(memory.memory, pos_inv)
-            
-            # Check similarity to missing object (create random SP for it)
-            if missing_obj not in memory.vocabulary:
-                missing_sp = np.random.randn(dimensions)
-                missing_sp = missing_sp / np.linalg.norm(missing_sp)
-            else:
-                missing_sp = memory.vocabulary[missing_obj]
+            result = result / np.linalg.norm(result)
             
             sim = ssp.similarity(result, missing_sp)
-            max_similarity = max(max_similarity, sim)
+            
+            # Threshold: missing object should have low similarity
+            threshold = 3.0 / np.sqrt(dimensions)  # 3-sigma threshold
+            
+            if abs(sim) > threshold:
+                detected_at_any_location = True
+                break
         
-        # Should be below threshold (0.1)
-        accuracies.append(max_similarity < 0.1)
+        # Correct if missing object was NOT detected at any location
+        accuracies.append(not detected_at_any_location)
     
     accuracy = np.mean(accuracies) * 100
     print(f"Accuracy: {accuracy:.1f}%")
@@ -115,7 +119,7 @@ def test_missing_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
     
     return accuracy
 
-def test_location_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
+def test_location_query(n_trials=100, dimensions=1024, bounds=(-5, 5)):
     """
     Test querying what object is at a location.
     """
@@ -140,6 +144,8 @@ def test_location_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
             y = np.random.uniform(bounds[0], bounds[1])
             memory.add_object(obj_name, x, y)
             positions[obj_name] = (x, y)
+
+        memory.normalize_memory()
         
         # Query random object's location
         query_obj = np.random.choice(object_names)
@@ -156,7 +162,7 @@ def test_location_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
     
     return accuracy
 
-def test_duplicate_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
+def test_duplicate_object_query(n_trials=100, dimensions=1024, bounds=(-5, 5)):
     """
     Test querying objects that appear multiple times.
     """
@@ -188,9 +194,11 @@ def test_duplicate_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
             x = np.random.uniform(bounds[0], bounds[1])
             y = np.random.uniform(bounds[0], bounds[1])
             memory.add_object(f"OBJ_{i}", x, y)
+
+        memory.normalize_memory()
         
         # Query the duplicate object
-        found_positions = memory.query_object(duplicate_obj, bounds=bounds, resolution=50)
+        found_positions = memory.query_object(duplicate_obj, bounds=bounds, resolution=150)
         
         # Check if decoded position is close to either true position
         if len(found_positions) > 0:
@@ -209,7 +217,7 @@ def test_duplicate_object_query(n_trials=100, dimensions=512, bounds=(-5, 5)):
     
     return accuracy
 
-def test_construct_and_readout_ssp(n_trials=100, dimensions=512, bounds=(-5, 5)):
+def test_construct_and_readout_ssp(n_trials=100, dimensions=1024, bounds=(-5, 5)):
     """
     Test encoding and decoding positions directly.
     """
@@ -256,12 +264,12 @@ def visualize_example_queries():
     Create visualizations similar to Figure 2 from Komer et al.
     """
     print("=" * 60)
-    print("VISUALIZATION: Example Queries (Figure 2 style)")
+    print("VISUALIZATION: Example Queries")
     print("=" * 60)
     
     # Set up
-    ssp = SpatialSemanticPointer(dimensions=512, seed=42)
-    memory = SpatialMemory(ssp, dimensions=512, seed=42)
+    ssp = SpatialSemanticPointer(dimensions=1024, seed=42)
+    memory = SpatialMemory(ssp, dimensions=1024, seed=42)
     
     # Add objects
     objects = {
@@ -304,11 +312,10 @@ def visualize_example_queries():
 
 def run_all_tests():
     """
-    Run all object detection tests from Table 2.
+    Run all object detection tests.
     """
     print("\n" + "=" * 60)
     print("RUNNING ALL PHASE 1 TESTS")
-    print("Replicating Komer et al. (2019), Table 2")
     print("=" * 60 + "\n")
     
     results = {}

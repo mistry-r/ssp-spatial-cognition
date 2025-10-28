@@ -28,19 +28,27 @@ class SpatialSemanticPointer:
         This is achieved by having unit magnitude in the Fourier domain.
         """
         # Generate random phases in Fourier domain
-        phases = self.rng.uniform(-np.pi, np.pi, self.d // 2 + 1)
+        phases = self.rng.uniform(0, 2*np.pi, self.d)
 
         # Create complex values with unit magnitude (symmetry needed for real-valued output)
+        fft_val = np.exp(1j * phases)
         fft_val = np.zeros(self.d, dtype=complex)
-        fft_val[0] = 1.0 # DC component is real
+        fft_val[0] = 1.0
 
+        pos_phases = self.rng.uniform(0, 2*np.pi, self.d // 2 - 1)
+
+        # Set positive frequencies
         for i in range(1, self.d // 2):
-            fft_val[i] = np.exp(1j * phases[i])
-            fft_val[self.d - i] = np.conj(fft_val[i]) # Conjugate symmetry
+            fft_val[i] = np.exp(1j * pos_phases[i-1])
 
-        fft_val[self.d // 2] = np.exp(1j *phases[self.d // 2]) # Nyquist
+        # Nyquist frequency (index d//2) must be real for even d
+        fft_val[self.d // 2] = 1.0 if self.rng.rand() > 0.5 else -1.0
 
-        vec = ifft(fft_val).real # Convert to time domain
+        # Negative frequencies are complex conjugates of positive frequencies
+        for i in range(self.d // 2 + 1, self.d):
+            fft_val[i] = np.conj(fft_val[self.d - i])
+
+        vec = np.fft.ifft(fft_val).real # Convert to time domain
         vec = vec / np.linalg.norm(vec) # Normalize to unit length
 
         return vec
@@ -131,22 +139,47 @@ class SpatialSemanticPointer:
             x_min, x_max = bounds[0]
             y_min, y_max = bounds[1]
 
-        x_vals =  np.linspace(x_min, x_max, resolution)
-        y_vals =  np.linspace(y_min, y_max, resolution)
+        ssp_norm = np.linalg.norm(ssp)
+        if ssp_norm > 1e-10:
+            ssp = ssp / ssp_norm
 
+        # Stage 1: Coarse search with lower resolution
+        coarse_res = max(20, resolution // 5)
+        x_vals_coarse = np.linspace(x_min, x_max, coarse_res)
+        y_vals_coarse = np.linspace(y_min, y_max, coarse_res)
+        
         best_similarity = -np.inf
         best_pos = (0, 0)
-
-        # Search for maximum similarity
-        for x in x_vals:
-            for y in y_vals:
+        
+        for x in x_vals_coarse:
+            for y in y_vals_coarse:
                 pos_ssp = self.encode_position(x, y)
                 sim = self.similarity(ssp, pos_ssp)
-
+                
                 if sim > best_similarity:
                     best_similarity = sim
                     best_pos = (x, y)
-
+        
+        # Stage 2: Fine search around best coarse position
+        search_radius = (x_max - x_min) / (2 * coarse_res)
+        x_fine_min = max(x_min, best_pos[0] - search_radius)
+        x_fine_max = min(x_max, best_pos[0] + search_radius)
+        y_fine_min = max(y_min, best_pos[1] - search_radius)
+        y_fine_max = min(y_max, best_pos[1] + search_radius)
+        
+        fine_res = resolution // 5
+        x_vals_fine = np.linspace(x_fine_min, x_fine_max, fine_res)
+        y_vals_fine = np.linspace(y_fine_min, y_fine_max, fine_res)
+        
+        for x in x_vals_fine:
+            for y in y_vals_fine:
+                pos_ssp = self.encode_position(x, y)
+                sim = self.similarity(ssp, pos_ssp)
+                
+                if sim > best_similarity:
+                    best_similarity = sim
+                    best_pos = (x, y)
+        
         return best_pos
 
     def get_heatmap(self, ssp, bounds=(-5, 5), resolution=50):
