@@ -45,8 +45,14 @@ class Network:
         """
         Simulate one timestep.
         """
-        # Reset ensemble inputs
-        for ens in self.ensembles:
+        # Reset ensemble inputs ONLY for ensembles that receive connections
+        # Keep the input for ensembles that have external input set
+        connected_ensembles = set()
+        for conn in self.connections:
+            connected_ensembles.add(conn.post)
+        
+        # Only reset inputs for ensembles that receive connections
+        for ens in connected_ensembles:
             ens.input_current = np.zeros(ens.n_neurons)
         
         # Update connections

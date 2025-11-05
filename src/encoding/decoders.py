@@ -14,11 +14,26 @@ class DecoderSolver:
         """
         Solve for decoders using regularized least squares.
         
-        Based on Lecture 3, Equation 7:
-            D^T = (AA^T + Nσ²I)^{-1} A X^T
+        Based on Lecture 3, Equation 7: D^T = (AA^T + Nσ²I)^{-1} A X^T
         """
+        # Handle activities shape
+        if activities.shape[0] > activities.shape[1]:
+            # Likely (n_samples, n_neurons) - transpose
+            activities = activities.T
+        
         n_neurons, n_samples = activities.shape
+        
+        # Handle targets shape
+        targets = np.atleast_2d(targets)
+        if targets.shape[0] == n_samples:
+            # Shape is (n_samples, dimensions) - transpose to (dimensions, n_samples)
+            targets = targets.T
+        
         dimensions = targets.shape[0]
+        
+        # Ensure same number of samples
+        if activities.shape[1] != targets.shape[1]:
+            raise ValueError(f"Mismatch: activities {activities.shape}, targets {targets.shape}")
         
         # Compute A @ A^T
         AAT = activities @ activities.T
@@ -30,31 +45,28 @@ class DecoderSolver:
         try:
             AAT_reg_inv = np.linalg.inv(AAT + regularization)
         except np.linalg.LinAlgError:
-            # Use pseudo-inverse if singular
             AAT_reg_inv = np.linalg.pinv(AAT + regularization)
         
+        # D^T shape: (n_neurons, dimensions)
         decoders_T = AAT_reg_inv @ activities @ targets.T
-        decoders = decoders_T.T
         
-        return decoders
+        # We want D shape: (n_neurons, dimensions)
+        # decoders_T already has the right shape!
+        return decoders_T
     
     def solve_function(self, activities, x_samples, function, noise_sigma=0.1):
         """
-        Solve for function decoders.
-        
-        Based on Lecture 5: Feed-Forward Transformation
+        Solve for function decoders
         """
-        # Evaluate function at each sample
         n_samples = x_samples.shape[0]
         
-        # Handle both scalar and vector outputs
+        # Evaluate function at each sample
         test_output = function(x_samples[0])
-        if np.isscalar(test_output):
-            output_dim = 1
-            targets = np.array([function(x) for x in x_samples])
-            targets = targets.reshape(1, -1)
-        else:
-            output_dim = len(test_output)
-            targets = np.array([function(x) for x in x_samples]).T
+        test_output = np.atleast_1d(test_output)
+        output_dim = len(test_output)
         
+        # Compute all outputs
+        targets = np.array([np.atleast_1d(function(x)) for x in x_samples])
+        
+        # targets shape: (n_samples, output_dim)
         return self.solve(activities, targets, noise_sigma)

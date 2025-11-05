@@ -39,6 +39,9 @@ def test_network_with_probes():
     """Test network with probes."""
     ens = Ensemble(n_neurons=50, dimensions=1, seed=42)
     
+    # Compute decoders before using ensemble
+    ens.compute_decoders()
+    
     net = Network(dt=0.001)
     net.add_ensemble(ens)
     net.probe(ens, 'test', 'decoded')
@@ -69,6 +72,10 @@ def test_network_function_computation():
     # Probe
     net.probe(ens_b, 'output', 'decoded')
     
+    # Compute decoders before running
+    ens_a.compute_decoders()
+    ens_b.compute_decoders() 
+    
     # Set input
     input_val = 0.6
     ens_a.set_input(np.array([input_val]))
@@ -89,6 +96,9 @@ def test_network_function_computation():
 def test_network_2d_ensemble():
     """Test 2D ensemble in network."""
     ens = Ensemble(n_neurons=200, dimensions=2, seed=42)
+    
+    # IMPORTANT: Compute decoders
+    ens.compute_decoders()
     
     net = Network(dt=0.001)
     net.add_ensemble(ens)
