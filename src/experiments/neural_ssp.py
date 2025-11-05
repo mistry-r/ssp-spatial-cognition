@@ -13,8 +13,9 @@ def test_neural_communication_channel():
     print("="*60)
     
     # Create ensembles
-    ens_a = Ensemble(n_neurons=100, dimensions=1, seed=42)
-    ens_b = Ensemble(n_neurons=100, dimensions=1, seed=43)
+    ens_a = Ensemble(n_neurons=500, dimensions=1, seed=42)
+    ens_b = Ensemble(n_neurons=500, dimensions=1, seed=43)
+    ens_b.compute_decoders(n_samples=1000, noise_sigma=0.05)
     
     # Create network
     net = Network(dt=0.001)
@@ -24,6 +25,8 @@ def test_neural_communication_channel():
     # Connect A -> B
     conn = Connection(ens_a, ens_b)
     net.add_connection(conn)
+
+    ens_a.compute_decoders()
     
     # Add probes
     net.probe(ens_a, 'ens_a', 'decoded')
@@ -73,8 +76,9 @@ def test_neural_function_computation():
     print("="*60)
     
     # Create ensembles
-    ens_a = Ensemble(n_neurons=200, dimensions=1, seed=42)
-    ens_b = Ensemble(n_neurons=200, dimensions=1, seed=43)
+    ens_a = Ensemble(n_neurons=300, dimensions=1, seed=42)
+    ens_b = Ensemble(n_neurons=300, dimensions=1, seed=43)
+    ens_b.compute_decoders(n_samples=1000, noise_sigma=0.05)
     
     # Create network
     net = Network(dt=0.001)
@@ -84,6 +88,8 @@ def test_neural_function_computation():
     # Connect A -> B with squaring function
     conn = Connection(ens_a, ens_b, function=lambda x: x**2)
     net.add_connection(conn)
+
+    ens_a.compute_decoders()
     
     # Add probes
     net.probe(ens_a, 'ens_a', 'decoded')
@@ -106,7 +112,7 @@ def test_neural_function_computation():
         ens_a.set_input(np.array([val]))
         
         # Run
-        net.run(duration=0.5)
+        net.run(duration=1.0) # 0.5
         
         # Get final output
         data_b = net.get_probe_data('ens_b')
@@ -143,8 +149,9 @@ def test_neural_multiplication():
     print("="*60)
     
     # Create 2D ensemble for representing (x, y)
-    ens_product = Ensemble(n_neurons=300, dimensions=2, seed=42)
-    ens_result = Ensemble(n_neurons=100, dimensions=1, seed=43)
+    ens_product = Ensemble(n_neurons=600, dimensions=2, seed=42)
+    ens_result = Ensemble(n_neurons=300, dimensions=1, seed=43)
+    ens_result.compute_decoders(n_samples=1000, noise_sigma=0.05)
     
     # Create network
     net = Network(dt=0.001)
@@ -183,7 +190,7 @@ def test_neural_multiplication():
         ens_product.set_input(np.array([x, y]))
         
         # Run
-        net.run(duration=0.5)
+        net.run(duration=1.0) # 0.5
         
         # Get output
         data_out = net.get_probe_data('output')

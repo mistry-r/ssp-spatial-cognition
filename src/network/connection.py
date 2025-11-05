@@ -17,15 +17,15 @@ class Connection:
         self.synapse_tau = synapse_tau
         
         # Compute decoders for pre-ensemble
+        n_samples = max(1000, self.pre.n_neurons * 2)
+
         if function is None:
             # Identity function - output dimension = pre dimension
-            if self.pre.decoders is None:
-                self.pre.compute_decoders()
+            self.pre.compute_decoders(n_samples=n_samples)
             output_dim = self.pre.dimensions
         else:
             # Compute function decoders
-            if self.pre.decoders is None:
-                self.pre.compute_decoders(function=function)
+            self.pre.compute_decoders(function=function, n_samples=n_samples)
             output_dim = self.pre.decoders.shape[1]
         
         # Synaptic filter state (exponential filter)
