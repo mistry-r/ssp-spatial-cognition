@@ -1,10 +1,3 @@
-"""
-Neural SSP Operations
-
-Implements SSP operations (circular convolution, encoding, decoding) 
-using spiking neural networks with the Neural Engineering Framework (NEF)
-"""
-
 import numpy as np
 from ..neurons.population import Ensemble
 from ..network.network import Network
