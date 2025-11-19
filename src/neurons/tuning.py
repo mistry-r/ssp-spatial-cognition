@@ -13,7 +13,7 @@ def generate_tuning_curves(n_neurons, dimensions, rng=None):
     encoders /= np.linalg.norm(encoders, axis=1, keepdims=True)
     
     # Generate maximum firing rates
-    max_rates = rng.uniform(100, 200, size=n_neurons)
+    max_rates = rng.uniform(100, 200, size=n_neurons) # Hz
     
     # Generate intercepts
     intercepts = rng.uniform(-1, 1, size=n_neurons)
