@@ -15,25 +15,80 @@ class DecoderSolver:
         Solve for decoders using regularized least squares.
         
         Based on Lecture 3, Equation 7: D^T = (AA^T + Nσ²I)^{-1} A X^T
+        
+        Args:
+            activities: Neural activities - accepts any of:
+                - (n_neurons, n_samples) 
+                - (n_samples, n_neurons)
+            targets: Target values - accepts any of:
+                - (dimensions, n_samples)
+                - (n_samples, dimensions)
+            noise_sigma: Noise level for regularization
+            
+        Returns:
+            Decoders with shape (n_neurons, dimensions)
         """
-        # Handle activities shape
-        if activities.shape[0] > activities.shape[1]:
-            # Likely (n_samples, n_neurons) - transpose
-            activities = activities.T
-        
-        n_neurons, n_samples = activities.shape
-        
-        # Handle targets shape
+        # Ensure 2D arrays
+        activities = np.atleast_2d(activities)
         targets = np.atleast_2d(targets)
-        if targets.shape[0] == n_samples:
-            # Shape is (n_samples, dimensions) - transpose to (dimensions, n_samples)
+        
+        # Store original shapes for debugging
+        orig_act_shape = activities.shape
+        orig_targ_shape = targets.shape
+        
+        # Strategy: Figure out which dimension is n_samples by finding common dimension
+        # n_samples should be the same in both activities and targets
+        
+        # Check all 4 possible interpretations:
+        # 1. activities=(n_neurons, n_samples), targets=(dimensions, n_samples)
+        # 2. activities=(n_neurons, n_samples), targets=(n_samples, dimensions)  
+        # 3. activities=(n_samples, n_neurons), targets=(dimensions, n_samples)
+        # 4. activities=(n_samples, n_neurons), targets=(n_samples, dimensions)
+        
+        if activities.shape[1] == targets.shape[1]:
+            # Case 1: both are (*, n_samples) format - CORRECT FORMAT
+            n_neurons = activities.shape[0]
+            dimensions = targets.shape[0]
+            n_samples = activities.shape[1]
+        elif activities.shape[1] == targets.shape[0]:
+            # Case 2: activities=(n_neurons, n_samples), targets=(n_samples, dimensions)
+            # Need to transpose targets
             targets = targets.T
+            n_neurons = activities.shape[0]
+            dimensions = targets.shape[0]
+            n_samples = activities.shape[1]
+        elif activities.shape[0] == targets.shape[1]:
+            # Case 3: activities=(n_samples, n_neurons), targets=(dimensions, n_samples)
+            # Need to transpose activities
+            activities = activities.T
+            n_neurons = activities.shape[0]
+            dimensions = targets.shape[0]
+            n_samples = activities.shape[1]
+        elif activities.shape[0] == targets.shape[0]:
+            # Case 4: both are (n_samples, *) format
+            # Need to transpose both
+            activities = activities.T
+            targets = targets.T
+            n_neurons = activities.shape[0]
+            dimensions = targets.shape[0]
+            n_samples = activities.shape[1]
+        else:
+            # No common dimension - error
+            raise ValueError(
+                f"Cannot find common sample dimension. "
+                f"Activities shape: {orig_act_shape}, Targets shape: {orig_targ_shape}"
+            )
         
-        dimensions = targets.shape[0]
-        
-        # Ensure same number of samples
+        # Final validation
         if activities.shape[1] != targets.shape[1]:
-            raise ValueError(f"Mismatch: activities {activities.shape}, targets {targets.shape}")
+            raise ValueError(
+                f"After reshaping, sample counts still don't match: "
+                f"activities {activities.shape}, targets {targets.shape}"
+            )
+        
+        # Now we have:
+        # activities: (n_neurons, n_samples)
+        # targets: (dimensions, n_samples)
         
         # Compute A @ A^T
         AAT = activities @ activities.T
@@ -50,13 +105,21 @@ class DecoderSolver:
         # D^T shape: (n_neurons, dimensions)
         decoders_T = AAT_reg_inv @ activities @ targets.T
         
-        # We want D shape: (n_neurons, dimensions)
-        # decoders_T already has the right shape!
+        # Return D with shape (n_neurons, dimensions)
         return decoders_T
     
     def solve_function(self, activities, x_samples, function, noise_sigma=0.1):
         """
         Solve for function decoders
+        
+        Args:
+            activities: Neural activities (any orientation)
+            x_samples: Input samples, shape (n_samples, input_dim)
+            function: Function to compute on inputs
+            noise_sigma: Noise level
+            
+        Returns:
+            Decoders with shape (n_neurons, output_dim)
         """
         n_samples = x_samples.shape[0]
         
