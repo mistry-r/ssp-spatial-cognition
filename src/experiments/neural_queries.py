@@ -1,12 +1,12 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from ..ssp.fractional_binding import SpatialSemanticPointer
 from ..ssp.spatial_memory import SpatialMemory
 from ..ssp.neural_convolution import (
-    NeuralCircularConvolution, 
-    NeuralSSPEncoder, 
+    NeuralCircularConvolution,
+    NeuralSSPEncoder,
     NeuralSSPDecoder
 )
+
 
 class NeuralSpatialMemory:
     """
@@ -20,7 +20,7 @@ class NeuralSpatialMemory:
         self.n_neurons_per_dim = n_neurons_per_dim
         self.seed = seed
         
-        # Mathematical memory for comparison
+        # Mathematical memory for storing objects
         self.math_memory = SpatialMemory(ssp_generator, dimensions, seed)
         
         # Neural components
@@ -28,7 +28,7 @@ class NeuralSpatialMemory:
         self.decoder = NeuralSSPDecoder(ssp_generator, dimensions, n_neurons_per_dim, seed=seed)
         self.convolution = NeuralCircularConvolution(dimensions, n_neurons_per_dim, seed)
         
-        # Memory state
+        # Memory vector
         self.memory_vector = np.zeros(dimensions)
     
     def add_object(self, object_name, x, y):
@@ -40,23 +40,23 @@ class NeuralSpatialMemory:
         """
         Neural query: Where is object_name?
         
-        Implements: M ⊛ OBJ^(-1) -> position SSP -> (x, y)
+        Implements: M ⊛ OBJ^(-1) → position SSP → (x, y)
         """
         if object_name not in self.math_memory.vocabulary:
             return None
         
+        # Normalize memory
+        memory_norm = self.memory_vector / (np.linalg.norm(self.memory_vector) + 1e-10)
+        
         # Get object SP and inverse
         obj_sp = self.math_memory.vocabulary[object_name]
+        obj_sp = obj_sp / (np.linalg.norm(obj_sp) + 1e-10)
         obj_inv = self.ssp.get_inverse(obj_sp)
         
-        # Neural convolution
-        result_ssp = self.convolution.convolve(
-            self.memory_vector,
-            obj_inv,
-            duration=duration
-        )
+        # Neural convolution: M ⊛ OBJ^(-1)
+        result_ssp = self.convolution.convolve(memory_norm, obj_inv, duration=duration)
         
-        # Neural decoding
+        # Neural decoding: SSP → (x, y)
         x, y = self.decoder.decode(result_ssp, duration=duration)
         
         return x, y
@@ -65,28 +65,28 @@ class NeuralSpatialMemory:
         """
         Neural query: What is at location (x, y)?
         
-        Implements: M ⊛ S(x,y)^(-1) -> object SP
+        Implements: M ⊛ S(x,y)^(-1) → object SP
         """
-        # Neural encoding
+        # Normalize memory
+        memory_norm = self.memory_vector / (np.linalg.norm(self.memory_vector) + 1e-10)
+        
+        # Neural encoding: (x, y) → SSP
         pos_ssp = self.encoder.encode(x, y, duration=duration)
         
         # Get inverse
         pos_inv = self.ssp.get_inverse(pos_ssp)
         
-        # Neural convolution
-        result = self.convolution.convolve(
-            self.memory_vector,
-            pos_inv,
-            duration=duration
-        )
+        # Neural convolution: M ⊛ S(x,y)^(-1)
+        result = self.convolution.convolve(memory_norm, pos_inv, duration=duration)
         
         # Normalize
-        result = result / np.linalg.norm(result)
+        result = result / (np.linalg.norm(result) + 1e-10)
         
         # Find most similar object
         similarities = {}
         for obj_name, obj_sp in self.math_memory.vocabulary.items():
-            sim = self.ssp.similarity(result, obj_sp)
+            obj_sp_norm = obj_sp / (np.linalg.norm(obj_sp) + 1e-10)
+            sim = self.ssp.similarity(result, obj_sp_norm)
             similarities[obj_name] = sim
         
         if len(similarities) == 0:
@@ -101,6 +101,8 @@ class NeuralSpatialMemory:
         else:
             return None, best_similarity
 
+
+# Standalone test functions for validation
 
 def test_neural_convolution(n_trials=20, dimensions=256):
     """Test neural circular convolution."""
@@ -126,7 +128,6 @@ def test_neural_convolution(n_trials=20, dimensions=256):
         
         # Neural
         neural_result = conv.convolve(a, b, duration=0.3)
-        neural_result = neural_result / np.linalg.norm(neural_result)
         
         # Similarity
         similarity = np.dot(math_result, neural_result)
